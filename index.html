@@ -74,8 +74,8 @@
             <button @click="extractFrames()">Extract frames</button>
             <button @click="uploadFrames()">Upload frames</button>
             <p>Exracting frames : {{saveFrames}}, currentFrameExtractIndex: {{currentFrameExtractIndex}}</p>
-            <p v-for="time in predicionTimes">
-                <button @click="gotoFrame(time)">Show</button> {{time}}
+            <p v-for="time, index in predicionTimes">
+                <button @click="gotoFrame(time); currentFrameExtractIndex=index">Show</button> {{time}}
                 <img class="frame" :src="videoImageFrameDataUrls[time]">
                 <span> {{videoImageFramePredictions[time]}}</span>
             </p>
@@ -188,13 +188,31 @@
                 this.predicionTimes.forEach(time => {
 
                     const imageDataUrl = this.videoImageFrameDataUrls[time]
-                    const bbox = this.videoImageFramePredictions[time]
+                    const bboxes = this.videoImageFramePredictions[time]
                     const name = time.toString() + '.png'
-                    upload_file(name, imageDataUrl, bbox)
+
+                    const json_boxes = []
+                    bboxes.forEach(box => {
+                        const json_bbox = {
+                            'label_name': 'ball',
+                            'ymin': box[0], 'xmin': box[1],
+                            'ymax': box[2], 'xmax': box[3]
+                        }
+                        json_boxes.push(json_bbox)
+                    });
+
+
+
+
+                    console.log('upload', json_boxes)
+
+                    upload_file(name, imageDataUrl, json_boxes)
                 });
             },
             predictCurrentFrame() {
+                app.currentFrameExtractIndex
                 run()
+                predictAndSave()
             }
 
         },
@@ -210,22 +228,28 @@
 
     const video = document.getElementById('video')
 
+    async function predictAndSave() {
+        const currentTime = app.predicionTimes[app.currentFrameExtractIndex]
+
+        const currentFrameCanvas = getCanvasOfCurrentFrame()
+
+        app.videoImageFrameDataUrls[currentTime] = currentFrameCanvas.toDataURL()
+
+        const { bboxes, confidences } = await predict(currentFrameCanvas)
+
+        const confidentBboxes = getConfidentBboxes(bboxes, confidences)
+        app.videoImageFramePredictions[currentTime] = confidentBboxes
+    }
+
+
     video.onseeked = async (event) => {
 
         console.log('moved frame')
 
         if (app.saveFrames) {
             console.log('saving frame at time: ', video.currentTime)
-            const currentTime = app.predicionTimes[app.currentFrameExtractIndex]
 
-            const currentFrameCanvas = getCanvasOfCurrentFrame()
-            app.videoImageFrameDataUrls[currentTime] = currentFrameCanvas.toDataURL()
-
-            // predict on canvas 
-            const { bboxes, confidences } = await predict(currentFrameCanvas)
-            console.log(bboxes, confidences)
-            const confidentBboxes = getConfidentBboxes(bboxes, confidences)
-            app.videoImageFramePredictions[currentTime] = confidentBboxes
+            await predictAndSave()
 
             app.currentFrameExtractIndex += 1
             app.extractNextFrame()

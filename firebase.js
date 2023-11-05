@@ -16,7 +16,7 @@ export function upload_file(name, dataUrl, bboxes = '') {
     const metadata = {
         contentType: 'image/png',
         customMetadata: {
-            'bboxes': JSON.stringify(bboxes)
+            'labels': JSON.stringify(bboxes)
         }
     };
 
