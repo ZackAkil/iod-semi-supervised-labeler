@@ -27,13 +27,17 @@
             display: inline-block;
             position: relative;
         }
+
+        .frame {
+            height: 200px;
+        }
     </style>
 </head>
 
 <body>
     <div id="app">
 
-        <h1>TFLite Label Assist - {{ message }}</h1>
+        <h1>TFLite Label Assist</h1>
 
         <div id="container">
             <!-- <img id="img" src="goal_test.png"/> -->
@@ -53,7 +57,14 @@
             <p>Video length : {{videoDuration}}s</p>
             <p>Predictions : {{predicionCount}}</p>
             <p>Predicting on frame times: {{predicionTimes}}</p>
-
+        </div>
+        <div>
+            <button @click="extractFrames()">Extract frames</button>
+            <p>Exracting frames : {{saveFrames}}, currentFrameExtractIndex: {{currentFrameExtractIndex}}</p>
+            <p v-for="time in predicionTimes">
+                <button @click="gotoFrame(time)">Show</button> {{time}}
+                <img class="frame" :src="videoImageFrameDataUrls[time]">
+            </p>
         </div>
 
     </div>
@@ -61,7 +72,7 @@
 </body>
 <script>
 
-    // TODO : allow you to specifiy which frames to predict on 
+    // TODO : allow you to specifiy which frames to predict on ✅
     // TODO : save frame as PNG
     // TODO : save image to Cloud Storage and inject metadata (labels)
     // TODO : allow you to drag and drop videos, models into UI
@@ -76,16 +87,21 @@
     const app = createApp({
         setup() {
 
-            const message = ref('Hello vue!')
             const predictPerSecond = ref(1)
             const confidence = ref(0.5)
             const videoDuration = ref(0)
 
+            const videoImageFrameDataUrls = ref({})
+            const saveFrames = ref(false)
+            const currentFrameExtractIndex = ref(0)
+
             return {
-                message,
                 confidence,
                 predictPerSecond,
-                videoDuration
+                videoDuration,
+                videoImageFrameDataUrls,
+                saveFrames,
+                currentFrameExtractIndex
             }
 
         },
@@ -93,10 +109,9 @@
             predicionCount() {
                 return parseInt(this.videoDuration * this.predictPerSecond)
             },
-            // timeBetweenPredictions() {
-            //     return 1/this.predictPerSecond
-            // },
+
             predicionTimes() {
+                // get list of times in seconds of when to extract frames and do predictions
                 const times = []
                 const timeBetweenPredictions = 1 / this.predictPerSecond
                 var currentTime = 0
@@ -106,6 +121,45 @@
                 }
                 return times
             }
+        },
+        methods: {
+            gotoFrame(time) {
+                console.log('going to frame ', time)
+                video.currentTime = time
+                const img = getFrameFromVideo(video, time)
+            },
+            extractFrames() {
+                console.log('extracting frames ...')
+                this.saveFrames = true
+                this.currentFrameExtractIndex = 0
+                this.extractNextFrame()
+
+                // this.predicionTimes.forEach(time => {
+
+                //     window.setTimeout(() => {
+                //         console.log('extracting frame ', time)
+                //         const frameDataUrl = getFrameFromVideo(video, time)
+                //         this.videoImageFrameDataUrls[time] = frameDataUrl
+                //     }, 500);
+
+                // });
+            },
+            extractNextFrame() {
+
+                if (this.currentFrameExtractIndex >= this.predicionTimes.length) {
+                    console.log('extracted all frames')
+                    this.saveFrames = false
+                    this.currentFrameExtractIndex = 0
+                    return
+                }
+
+                // move video position
+                video.currentTime = this.predicionTimes[this.currentFrameExtractIndex]
+
+
+
+            }
+
         },
         mounted() {
             console.log('Mounted app')
@@ -119,8 +173,21 @@
 
     const video = document.getElementById('video')
 
+    video.onseeked = (event) => {
 
-    video.onloadeddata = function () {
+        console.log('moved frame')
+
+        if (app.saveFrames) {
+            console.log('saving frame at time: ', video.currentTime)
+            const currentTime = app.predicionTimes[app.currentFrameExtractIndex]
+            app.videoImageFrameDataUrls[currentTime] = saveCurrentFrame()
+            app.currentFrameExtractIndex += 1
+            app.extractNextFrame()
+        }
+    };
+
+
+    video.onloadeddata = () => {
         console.log("Video loaded , duration", video.duration);
         app.videoDuration = video.duration
     };
@@ -128,14 +195,7 @@
     function load_video(src) {
         video.src = src
     }
-
     load_video("test_video.mp4")
-
-
-    // video.addEventListener("timeupdate", (event) => {
-    //   console.log(video.currentTime);
-    //   run()
-    // });
 
     let prev_time = null
 
@@ -191,7 +251,6 @@
             if (conf >= getConfidenceValue())
                 draw_bbox(bbox, conf)
         }
-
     }
 
     // run()
@@ -219,6 +278,49 @@
         var text = draw.text(String(opacity.toFixed(2))).font({ size: 16 }).move(bbox_x, bbox_y).fill('#ffffff')
     }
 
+
+    function saveCurrentFrame() {
+        // Create a new Canvas element.
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        // Draw the video frame to the canvas.
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+
+        return canvas.toDataURL();
+    }
+
+
+
+    function getFrameFromVideo(video, timeInSeconds) {
+        // Seek to the desired time in the video.
+        video.currentTime = timeInSeconds;
+
+        // wait for video to actually update frame
+
+
+        // Create a new Canvas element.
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        // Draw the video frame to the canvas.
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+
+        return canvas.toDataURL();
+
+        // Get the image data from the canvas.
+        // const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        // Create a new Image element and set its src attribute to the image data.
+        // const image = new Image();
+        // image.src = canvas.toDataURL();
+
+        // return image;
+    }
 
 
 
