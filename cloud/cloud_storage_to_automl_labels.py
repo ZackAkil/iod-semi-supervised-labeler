@@ -30,15 +30,14 @@ def create_automl_label_json(file_location, bboxes):
     for box in bboxes:
         print('box', box)
         label_object = {'displayName': box['label_name'],
-                        'xMin': box['ymin'],
-                        'yMin': box['xmin'],
-                        'xMax': box['ymax'],
-                        'yMax': box['xmax']}
+                        'yMin': box['ymin'],
+                        'xMin': box['xmin'],
+                        'yMax': box['ymax'],
+                        'xMax': box['xmax']}
         boundingBoxAnnotations.append(label_object)
 
     label_record = {'imageGcsUri': file_location,
                     'boundingBoxAnnotations': boundingBoxAnnotations}
-
 
     return label_record
 
@@ -74,9 +73,10 @@ if __name__ == "__main__":
     for blob in blobs:
         print(blob.name)
         print(blob.metadata)
-        labels_metadata = extract_label_metadata(  blob.metadata )
-        full_file_name = f'gs://{bucket_name}/{blob.name}'   
-        label_record = create_automl_label_json(full_file_name, labels_metadata)
+        labels_metadata = extract_label_metadata(blob.metadata)
+        full_file_name = f'gs://{bucket_name}/{blob.name}'
+        label_record = create_automl_label_json(
+            full_file_name, labels_metadata)
         label_records_list.append(label_record)
 
     with open('labels.jsonl', 'w') as f:
