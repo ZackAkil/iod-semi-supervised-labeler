@@ -50,7 +50,9 @@
             <p>Prediction per second - {{predictPerSecond}}</p>
             <input id="frame" type="number" v-model.number="predictPerSecond">
 
-            <p>Video length = {{videoDuration}}s</p>
+            <p>Video length : {{videoDuration}}s</p>
+            <p>Predictions : {{predicionCount}}</p>
+            <p>Predicting on frame times: {{predicionTimes}}</p>
 
         </div>
 
@@ -87,14 +89,28 @@
             }
 
         },
+        computed: {
+            predicionCount() {
+                return parseInt(this.videoDuration * this.predictPerSecond)
+            },
+            // timeBetweenPredictions() {
+            //     return 1/this.predictPerSecond
+            // },
+            predicionTimes() {
+                const times = []
+                const timeBetweenPredictions = 1 / this.predictPerSecond
+                var currentTime = 0
+                for (let index = 0; index < this.predicionCount; index++) {
+                    times.push(currentTime)
+                    currentTime += timeBetweenPredictions
+                }
+                return times
+            }
+        },
         mounted() {
             console.log('Mounted app')
-
-
         }
     }).mount('#app')
-
-
 
 
     function getConfidenceValue() {
