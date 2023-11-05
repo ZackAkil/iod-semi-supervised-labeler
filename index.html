@@ -37,7 +37,7 @@
 
         <div id="container">
             <!-- <img id="img" src="goal_test.png"/> -->
-            <video id="video" controls src="test_video.mp4"></video>
+            <video id="video" controls></video>
             <div id="canvas"></div>
         </div>
 
@@ -45,10 +45,12 @@
 
         <div>
             <p>Confidence - {{confidence}}</p>
-            <input id="confidence" type="range" min="0" max="1" value=".5" step="0.05" v-model.number="confidence">
+            <input id="confidence" type="range" min="0" max="1" step="0.05" v-model.number="confidence">
 
             <p>Prediction per second - {{predictPerSecond}}</p>
             <input id="frame" type="number" v-model.number="predictPerSecond">
+
+            <p>Video length = {{videoDuration}}s</p>
 
         </div>
 
@@ -67,7 +69,6 @@
     // https://firebase.google.com/docs/storage/web/file-metadata
 
 
-
     const { createApp, ref } = Vue
 
     const app = createApp({
@@ -76,29 +77,44 @@
             const message = ref('Hello vue!')
             const predictPerSecond = ref(1)
             const confidence = ref(0.5)
+            const videoDuration = ref(0)
 
             return {
                 message,
                 confidence,
-                predictPerSecond
+                predictPerSecond,
+                videoDuration
             }
 
         },
         mounted() {
             console.log('Mounted app')
+
+
         }
     }).mount('#app')
+
+
+
 
     function getConfidenceValue() {
         return app.confidence
     }
 
+    const video = document.getElementById('video')
 
-    function load_video() {
 
+    video.onloadeddata = function () {
+        console.log("Video loaded , duration", video.duration);
+        app.videoDuration = video.duration
+    };
+
+    function load_video(src) {
+        video.src = src
     }
 
-    const video = document.getElementById('video')
+    load_video("test_video.mp4")
+
 
     // video.addEventListener("timeupdate", (event) => {
     //   console.log(video.currentTime);
@@ -186,6 +202,7 @@
         var rect = draw.rect(bbox_width, bbox_height).move(bbox_x, bbox_y).fill('none').stroke({ color: '#f06', opacity: opacity, width: 5 })
         var text = draw.text(String(opacity.toFixed(2))).font({ size: 16 }).move(bbox_x, bbox_y).fill('#ffffff')
     }
+
 
 
 
