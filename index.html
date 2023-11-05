@@ -48,6 +48,9 @@
             <video id="video" controls></video>
             <div id="canvas"></div>
         </div>
+        <p> {{frameFromTime}}
+            <button @click="setFromFrameTime()">Set frames from time</button>
+        </p>
 
         <button onclick="draw.clear()">Clear</button>
 
@@ -59,7 +62,7 @@
             <input id="frame" type="number" v-model.number="predictPerSecond">
 
             <p>Video length : {{videoDuration}}s</p>
-            <p>Predictions : {{predicionCount}}</p>
+            <p>Predictions : {{predicionTimes.length}}</p>
             <p>Predicting on frame times: {{predicionTimes}}</p>
         </div>
         <div>
@@ -69,6 +72,7 @@
             <p v-for="time in predicionTimes">
                 <button @click="gotoFrame(time)">Show</button> {{time}}
                 <img class="frame" :src="videoImageFrameDataUrls[time]">
+                <span> {{videoImageFramePredictions[time]}}</span>
             </p>
         </div>
 
@@ -79,7 +83,9 @@
 
     // TODO : allow you to specifiy which frames to predict on ✅
     // TODO : save frame as PNG ✅
-    // TODO : save image to Cloud Storage and inject metadata (labels)
+    // TODO : save image to Cloud Storage and inject metadata (labels) ✅
+    // TODO : use frames from a specific time only 
+    // TODO : save image to Cloud Storage with actuall bboxes 
     // TODO : allow you to drag and drop videos, models into UI
 
     // https://serversideup.net/capturing-an-image-from-an-html5-canvas-or-video-element/
@@ -99,16 +105,22 @@
             const videoDuration = ref(0)
 
             const videoImageFrameDataUrls = ref({})
+            const videoImageFramePredictions = ref({})
+
             const saveFrames = ref(false)
             const currentFrameExtractIndex = ref(0)
+
+            const frameFromTime = ref(0)
 
             return {
                 confidence,
                 predictPerSecond,
                 videoDuration,
                 videoImageFrameDataUrls,
+                videoImageFramePredictions,
                 saveFrames,
-                currentFrameExtractIndex
+                currentFrameExtractIndex,
+                frameFromTime
             }
 
         },
@@ -123,7 +135,11 @@
                 const timeBetweenPredictions = 1 / this.predictPerSecond
                 var currentTime = 0
                 for (let index = 0; index < this.predicionCount; index++) {
-                    times.push(currentTime)
+
+                    if (currentTime > this.frameFromTime) {
+                        times.push(currentTime.toFixed(3))
+                    }
+
                     currentTime += timeBetweenPredictions
                 }
                 return times
@@ -132,24 +148,18 @@
         methods: {
             gotoFrame(time) {
                 console.log('going to frame ', time)
-                video.currentTime = time
+                this.video.currentTime = time
                 const img = getFrameFromVideo(video, time)
+            },
+            setFromFrameTime() {
+                console.log('seting from frame time ')
+                this.frameFromTime = video.currentTime
             },
             extractFrames() {
                 console.log('extracting frames ...')
                 this.saveFrames = true
                 this.currentFrameExtractIndex = 0
                 this.extractNextFrame()
-
-                // this.predicionTimes.forEach(time => {
-
-                //     window.setTimeout(() => {
-                //         console.log('extracting frame ', time)
-                //         const frameDataUrl = getFrameFromVideo(video, time)
-                //         this.videoImageFrameDataUrls[time] = frameDataUrl
-                //     }, 500);
-
-                // });
             },
             extractNextFrame() {
 
@@ -171,7 +181,6 @@
                     const name = time.toString() + '.png'
                     upload_file(name, imageDataUrl, '')
                 });
-
             }
 
         },
@@ -187,18 +196,42 @@
 
     const video = document.getElementById('video')
 
-    video.onseeked = (event) => {
+    video.onseeked = async (event) => {
 
         console.log('moved frame')
 
         if (app.saveFrames) {
             console.log('saving frame at time: ', video.currentTime)
             const currentTime = app.predicionTimes[app.currentFrameExtractIndex]
-            app.videoImageFrameDataUrls[currentTime] = saveCurrentFrame()
+
+            const currentFrameCanvas = getCanvasOfCurrentFrame()
+            app.videoImageFrameDataUrls[currentTime] = currentFrameCanvas.toDataURL()
+
+            // predict on canvas 
+            const { bboxes, confidences } = await predict(currentFrameCanvas)
+            console.log(bboxes, confidences)
+            const confidentBboxes = getConfidentBboxes(bboxes, confidences)
+            app.videoImageFramePredictions[currentTime] = confidentBboxes
+
             app.currentFrameExtractIndex += 1
             app.extractNextFrame()
         }
     };
+
+
+    function getConfidentBboxes(bboxes, confidences) {
+
+        var output = []
+        for (let i = 0; i < confidences.length; i++) {
+            const conf = confidences[i]
+            const bbox = bboxes.slice(i * 4, (i * 4) + 4)
+            if (conf >= getConfidenceValue()) {
+                output.push(bbox)
+            }
+        }
+        return output
+
+    }
 
 
     video.onloadeddata = () => {
@@ -218,6 +251,29 @@
             run()
         prev_time = video.currentTime
     }, 1000 / 30)
+
+
+    async function predict(inputEl) {
+        // Load the MobilenetV2 tflite model from tfhub.
+        const tfliteModel = await tflite.loadTFLiteModel('model_docks_v2_back.tflite');
+
+        const outputTensor = tf.tidy(() => {
+            // Get pixels data from an image.
+            const img = tf.browser.fromPixels(inputEl);
+            // Normalize (might also do resize here if necessary).
+            const resized = tf.image.resizeBilinear(img, [192, 192]);
+            const input = tf.cast(tf.expandDims(resized), 'int32');
+            // Run the inference.
+            let outputTensor = tfliteModel.predict(input);
+            // De-normalize the result.     
+            return outputTensor
+        });
+        const bboxes = outputTensor['TFLite_Detection_PostProcess'].dataSync()
+        const confidences = outputTensor['TFLite_Detection_PostProcess:2'].dataSync()
+        console.log('Predicted on frame ✅')
+        return { bboxes: bboxes, confidences: confidences }
+    }
+
 
 
     async function run() {
@@ -293,7 +349,7 @@
     }
 
 
-    function saveCurrentFrame() {
+    function getCanvasOfCurrentFrame() {
         // Create a new Canvas element.
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth;
@@ -303,7 +359,7 @@
         const ctx = canvas.getContext('2d');
         ctx.drawImage(video, 0, 0);
 
-        return canvas.toDataURL();
+        return canvas;
     }
 
 
