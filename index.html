@@ -52,7 +52,12 @@
             <button @click="setFromFrameTime()">Set frames from time</button>
         </p>
 
-        <button onclick="draw.clear()">Clear</button>
+        <button @click="clearVisual()">Clear</button>
+
+        <button @click="predictCurrentFrame()">Predict on current frame</button>
+
+        Take top prediction
+        <input type="checkbox" v-model="takeTopPrediction" /> {{takeTopPrediction}}
 
         <div>
             <p>Confidence - {{confidence}}</p>
@@ -84,8 +89,8 @@
     // TODO : allow you to specifiy which frames to predict on ✅
     // TODO : save frame as PNG ✅
     // TODO : save image to Cloud Storage and inject metadata (labels) ✅
-    // TODO : use frames from a specific time only 
-    // TODO : save image to Cloud Storage with actuall bboxes 
+    // TODO : use frames from a specific time only ✅
+    // TODO : save image to Cloud Storage with actuall bboxes ✅
     // TODO : allow you to drag and drop videos, models into UI
 
     // https://serversideup.net/capturing-an-image-from-an-html5-canvas-or-video-element/
@@ -111,6 +116,7 @@
             const currentFrameExtractIndex = ref(0)
 
             const frameFromTime = ref(0)
+            const takeTopPrediction = ref(true)
 
             return {
                 confidence,
@@ -120,7 +126,8 @@
                 videoImageFramePredictions,
                 saveFrames,
                 currentFrameExtractIndex,
-                frameFromTime
+                frameFromTime,
+                takeTopPrediction
             }
 
         },
@@ -148,8 +155,11 @@
         methods: {
             gotoFrame(time) {
                 console.log('going to frame ', time)
-                this.video.currentTime = time
-                const img = getFrameFromVideo(video, time)
+                video.currentTime = time
+                // const img = getFrameFromVideo(video, time)
+            },
+            clearVisual() {
+                draw.clear()
             },
             setFromFrameTime() {
                 console.log('seting from frame time ')
@@ -178,9 +188,13 @@
                 this.predicionTimes.forEach(time => {
 
                     const imageDataUrl = this.videoImageFrameDataUrls[time]
+                    const bbox = this.videoImageFramePredictions[time]
                     const name = time.toString() + '.png'
-                    upload_file(name, imageDataUrl, '')
+                    upload_file(name, imageDataUrl, bbox)
                 });
+            },
+            predictCurrentFrame() {
+                run()
             }
 
         },
@@ -227,6 +241,9 @@
             const bbox = bboxes.slice(i * 4, (i * 4) + 4)
             if (conf >= getConfidenceValue()) {
                 output.push(bbox)
+                if (app.takeTopPrediction) {
+                    break
+                }
             }
         }
         return output
@@ -314,12 +331,15 @@
 
     function render_bboxes(bboxes, confidences) {
 
-
         for (let i = 0; i < confidences.length; i++) {
             const conf = confidences[i]
             const bbox = bboxes.slice(i * 4, (i * 4) + 4)
-            if (conf >= getConfidenceValue())
+            if (conf >= getConfidenceValue()) {
                 draw_bbox(bbox, conf)
+                if (app.takeTopPrediction) {
+                    break
+                }
+            }
         }
     }
 
