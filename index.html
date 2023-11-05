@@ -7,6 +7,10 @@
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 
+    <script src="auth.js"></script>
+
+    <script src="firebase.js" type="module"></script>
+
 
     <style>
         #canvas {
@@ -60,6 +64,7 @@
         </div>
         <div>
             <button @click="extractFrames()">Extract frames</button>
+            <button @click="uploadFrames()">Upload frames</button>
             <p>Exracting frames : {{saveFrames}}, currentFrameExtractIndex: {{currentFrameExtractIndex}}</p>
             <p v-for="time in predicionTimes">
                 <button @click="gotoFrame(time)">Show</button> {{time}}
@@ -70,10 +75,10 @@
     </div>
 
 </body>
-<script>
+<script type="module">
 
     // TODO : allow you to specifiy which frames to predict on ✅
-    // TODO : save frame as PNG
+    // TODO : save frame as PNG ✅
     // TODO : save image to Cloud Storage and inject metadata (labels)
     // TODO : allow you to drag and drop videos, models into UI
 
@@ -81,6 +86,8 @@
     // https://firebase.google.com/docs/storage/web/upload-files
     // https://firebase.google.com/docs/storage/web/file-metadata
 
+    // import { upload_file } from "firbase.js";
+    import { upload_file } from './firebase.js';
 
     const { createApp, ref } = Vue
 
@@ -155,8 +162,15 @@
 
                 // move video position
                 video.currentTime = this.predicionTimes[this.currentFrameExtractIndex]
+            },
+            uploadFrames() {
 
+                this.predicionTimes.forEach(time => {
 
+                    const imageDataUrl = this.videoImageFrameDataUrls[time]
+                    const name = time.toString() + '.png'
+                    upload_file(name, imageDataUrl, '')
+                });
 
             }
 
