@@ -35,6 +35,10 @@
         .frame {
             height: 200px;
         }
+
+        video {
+            height: 600;
+        }
     </style>
 </head>
 
@@ -42,6 +46,14 @@
     <div id="app">
 
         <h1>TFLite Label Assist</h1>
+
+        <p>Video input
+            <input id="videoInput" type="file" accept="video/*" />
+        </p>
+
+        <p>Model input (.tflite)
+            <input id="modelInput" type="file" />
+        </p>
 
         <div id="container">
             <!-- <img id="img" src="goal_test.png"/> -->
@@ -227,6 +239,43 @@
     }
 
     const video = document.getElementById('video')
+    const videoInput = document.getElementById('videoInput')
+
+    function loadVideoFromInput(event) {
+        const file = this.files[0]
+        const file_url = URL.createObjectURL(file)
+        loadVideoFromUrl(file_url)
+    }
+
+    videoInput.addEventListener('change', loadVideoFromInput, false)
+
+    const model = null
+    const modelInput = document.getElementById('modelInput')
+
+    modelInput.addEventListener('change', loadModelFromInput, false)
+
+    function loadModelFromInput(event) {
+        console.log('model inputed')
+        const file = this.files[0]
+        console.log('file ', file)
+        // loadTfModelFromInput(file)
+        // const file_url = URL.createObjectURL(file)
+        // loadVideoFromUrl(file_url)
+
+        const reader = new FileReader();
+        reader.onload = event => loadTfModelFromInput(event.target.result);
+        reader.readAsArrayBuffer(file);
+    }
+
+    // const onChange = event => {
+    //     if (event.target.files && event.target.files[0]) {
+    //         const reader = new FileReader();
+    //         reader.onload = event => fileOut.innerHTML = event.target.result;
+    //         reader.readAsText(event.target.files[0]);
+    //     }
+    // }
+
+
 
     async function predictAndSave() {
         const currentTime = app.predicionTimes[app.currentFrameExtractIndex]
@@ -280,10 +329,10 @@
         app.videoDuration = video.duration
     };
 
-    function load_video(src) {
+    function loadVideoFromUrl(src) {
         video.src = src
     }
-    load_video("test_video.mp4")
+    loadVideoFromUrl("test_video.mp4")
 
     let prev_time = null
 
@@ -293,10 +342,24 @@
         prev_time = video.currentTime
     }, 1000 / 30)
 
+    var tfliteModel = null
+
+    async function loadTfModelFromUrl(modelUrl) {
+        tfliteModel = await tflite.loadTFLiteModel(modelUrl);
+        console.log('model loaded from url')
+    }
+
+    async function loadTfModelFromInput(input) {
+        console.log('trying to load ', input)
+        tfliteModel = await tflite.loadTFLiteModel(input)
+        console.log('model loaded from file')
+    }
+
+    // loadTfModelFromUrl('model_docks_v2_back.tflite')
+
 
     async function predict(inputEl) {
         // Load the MobilenetV2 tflite model from tfhub.
-        const tfliteModel = await tflite.loadTFLiteModel('model_docks_v2_back.tflite');
 
         const outputTensor = tf.tidy(() => {
             // Get pixels data from an image.
@@ -319,7 +382,7 @@
 
     async function run() {
         // Load the MobilenetV2 tflite model from tfhub.
-        const tfliteModel = await tflite.loadTFLiteModel('model_docks_v2_back.tflite');
+        // const tfliteModel = await tflite.loadTFLiteModel('model_docks_v2_back.tflite');
 
         const outputTensor = tf.tidy(() => {
             // Get pixels data from an image.
