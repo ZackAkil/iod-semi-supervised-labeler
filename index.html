@@ -45,13 +45,13 @@
 <body>
     <div id="app">
 
-        <h1>TFLite Label Assist</h1>
+        <h1> TFLite Label Assist </h1>
 
-        <p>Video input
+        <p> Video input
             <input id="videoInput" type="file" accept="video/*" />
         </p>
 
-        <p>Model input (.tflite)
+        <p> Model input (.tflite)
             <input id="modelInput" type="file" />
         </p>
 
@@ -60,8 +60,13 @@
             <video id="video" controls></video>
             <div id="canvas"></div>
         </div>
+
         <p> {{frameFromTime}}
-            <button @click="setFromFrameTime()">Set frames from time</button>
+            <button @click="setFromFrameTime()">Set frame time to predict from:</button>
+        </p>
+
+        <p> {{frameToTime}}
+            <button @click="setToFrameTime()">Set frame time to predict to:</button>
         </p>
 
         <button @click="clearVisual()">Clear</button>
@@ -128,6 +133,8 @@
             const currentFrameExtractIndex = ref(0)
 
             const frameFromTime = ref(0)
+            const frameToTime = ref(0)
+
             const takeTopPrediction = ref(true)
 
             return {
@@ -139,6 +146,7 @@
                 saveFrames,
                 currentFrameExtractIndex,
                 frameFromTime,
+                frameToTime,
                 takeTopPrediction
             }
 
@@ -155,7 +163,7 @@
                 var currentTime = 0
                 for (let index = 0; index < this.predicionCount; index++) {
 
-                    if (currentTime > this.frameFromTime) {
+                    if ((currentTime > this.frameFromTime) && (currentTime < this.frameToTime)) {
                         times.push(currentTime.toFixed(3))
                     }
 
@@ -176,6 +184,10 @@
             setFromFrameTime() {
                 console.log('seting from frame time ')
                 this.frameFromTime = video.currentTime
+            },
+            setToFrameTime() {
+                console.log('seting to frame time ')
+                this.frameToTime = video.currentTime
             },
             extractFrames() {
                 console.log('extracting frames ...')
