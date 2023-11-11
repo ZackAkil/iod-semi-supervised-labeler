@@ -90,6 +90,20 @@
         <div>
             <button @click="extractFrames()">Extract frames</button>
             <button @click="uploadFrames()">Upload frames</button>
+
+            <p>
+                Google Storage output bucket
+                <input type="text" v-model="gsbucket"> {{gsbucket}}
+            </p>
+
+            <p>
+                Google Storage blob name prefix (folder)
+                <input type="text" v-model="gsfolder"> {{gsfolder}}
+            </p>
+            <p>
+                Google Storage blob name root : {{gsOutputFilePath}}
+            </p>
+
             <p>Exracting frames : {{saveFrames}}, currentFrameExtractIndex: {{currentFrameExtractIndex}}</p>
             <p v-for="time, index in predicionTimes">
                 <button @click="gotoFrame(time); currentFrameExtractIndex=index">Show</button> {{time}}
@@ -135,6 +149,10 @@
             const frameFromTime = ref(0)
             const frameToTime = ref(0)
 
+            const gsbucket = ref('')
+            const gsfolder = ref('')
+            const videoFileName = ref('')
+
             const takeTopPrediction = ref(true)
 
             return {
@@ -147,7 +165,10 @@
                 currentFrameExtractIndex,
                 frameFromTime,
                 frameToTime,
-                takeTopPrediction
+                takeTopPrediction,
+                gsbucket,
+                gsfolder,
+                videoFileName
             }
 
         },
@@ -155,7 +176,9 @@
             predicionCount() {
                 return parseInt(this.videoDuration * this.predictPerSecond)
             },
-
+            gsOutputFilePath() {
+                return `${this.gsbucket}/${this.gsfolder}/${this.videoFileName}`
+            },
             predicionTimes() {
                 // get list of times in seconds of when to extract frames and do predictions
                 const times = []
@@ -213,7 +236,7 @@
 
                     const imageDataUrl = this.videoImageFrameDataUrls[time]
                     const bboxes = this.videoImageFramePredictions[time]
-                    const name = time.toString() + '.png'
+
 
                     const json_boxes = []
                     bboxes.forEach(box => {
@@ -225,12 +248,10 @@
                         json_boxes.push(json_bbox)
                     });
 
-
-
-
                     console.log('upload', json_boxes)
-
-                    upload_file(name, imageDataUrl, json_boxes)
+                    const bucket = app.gsbucket
+                    const name = `${app.gsfolder}/${app.videoFileName}_${time.toString()}.png`
+                    upload_file(bucket, name, imageDataUrl, json_boxes)
                 });
             },
             predictCurrentFrame() {
@@ -255,6 +276,11 @@
 
     function loadVideoFromInput(event) {
         const file = this.files[0]
+        const fileName = file.name.split('.')[0]
+        console.log('loading video: ', fileName)
+
+        app.videoFileName = fileName
+
         const file_url = URL.createObjectURL(file)
         loadVideoFromUrl(file_url)
     }

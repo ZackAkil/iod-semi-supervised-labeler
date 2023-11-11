@@ -6,12 +6,18 @@ const firebaseApp = initializeApp(firebaseConfig);
 import { getStorage, ref, uploadString } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-storage.js";
 
 
-const storage = getStorage(firebaseApp, BUCKET);
 
+var BUCKET = null
+var STORAGE = null
 
-export function upload_file(name, dataUrl, bboxes = '') {
+export function upload_file(bucket, name, dataUrl, bboxes = '') {
 
-    const storageRef = ref(storage, name);
+    if (bucket != BUCKET) {
+        BUCKET = bucket
+        STORAGE = getStorage(firebaseApp, BUCKET);
+    }
+
+    const storageRef = ref(STORAGE, name);
 
     const metadata = {
         contentType: 'image/png',
@@ -21,7 +27,7 @@ export function upload_file(name, dataUrl, bboxes = '') {
     };
 
     uploadString(storageRef, dataUrl, 'data_url', metadata).then((snapshot) => {
-        console.log('Uploaded a data_url string! ✅ :', name);
+        console.log(`Uploaded a data_url string! ✅ : ${bucket}/${name}`);
     });
 
 }
