@@ -55,6 +55,11 @@
             <input id="modelInput" type="file" />
         </p>
 
+        <p>
+            Label (single label support only atm)
+            <input type="text" v-model="label"> {{label}}
+        </p>
+
         <div id="container">
             <!-- <img id="img" src="goal_test.png"/> -->
             <video id="video" controls></video>
@@ -155,6 +160,8 @@
 
             const takeTopPrediction = ref(true)
 
+            const label = ref('ball')
+
             return {
                 confidence,
                 predictPerSecond,
@@ -168,7 +175,8 @@
                 takeTopPrediction,
                 gsbucket,
                 gsfolder,
-                videoFileName
+                videoFileName,
+                label
             }
 
         },
@@ -237,11 +245,12 @@
                     const imageDataUrl = this.videoImageFrameDataUrls[time]
                     const bboxes = this.videoImageFramePredictions[time]
 
+                    const label = app.label
 
                     const json_boxes = []
                     bboxes.forEach(box => {
                         const json_bbox = {
-                            'label_name': 'ball',
+                            'label_name': label,
                             'ymin': box[0], 'xmin': box[1],
                             'ymax': box[2], 'xmax': box[3]
                         }
