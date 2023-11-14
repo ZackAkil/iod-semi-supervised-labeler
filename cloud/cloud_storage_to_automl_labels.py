@@ -73,6 +73,9 @@ if __name__ == "__main__":
     for blob in blobs:
         print(blob.name)
         print(blob.metadata)
+        if (blob.metadata is None):
+            print(f'Skipping {blob.name}, no metadata')
+            continue
         labels_metadata = extract_label_metadata(blob.metadata)
         full_file_name = f'gs://{bucket_name}/{blob.name}'
         label_record = create_automl_label_json(
